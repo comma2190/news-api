@@ -1,17 +1,27 @@
-export default async function handler(req, res) {
-  // CORS 허용
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+export const config = {
+  runtime: 'edge',
+};
+
+export default async function handler(req) {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
 
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    return new Response(null, { status: 200, headers: corsHeaders });
   }
 
-  const { keyword, start = 1 } = req.query;
+  const { searchParams } = new URL(req.url);
+  const keyword = searchParams.get('keyword');
+  const start = searchParams.get('start') || '1';
 
   if (!keyword) {
-    return res.status(400).json({ error: '키워드가 없습니다' });
+    return new Response(JSON.stringify({ error: '키워드가 없습니다' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   const NAVER_ID = process.env.NAVER_CLIENT_ID;
@@ -24,17 +34,19 @@ export default async function handler(req, res) {
       headers: {
         'X-Naver-Client-Id': NAVER_ID,
         'X-Naver-Client-Secret': NAVER_SECRET,
-      }
+      },
     });
 
-    if (!response.ok) {
-      return res.status(response.status).json({ error: 'Naver API 오류' });
-    }
-
     const data = await response.json();
-    return res.status(200).json(data);
 
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 }
