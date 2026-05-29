@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/naver.js": {
+      "runtime": "edge"
+    }
+  }
+}
