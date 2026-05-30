@@ -20,15 +20,19 @@ export default async function handler(req) {
 
   try {
     const body = await req.json();
-    
-    // AQ. 형식 키는 Bearer 토큰으로, AIzaSy 형식은 URL 파라미터로
     const isBearer = GEMINI_KEY.startsWith('AQ.');
-    const url = isBearer
-      ? 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent'
-      : `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_KEY}`;
-
-    const fetchHeaders = { 'Content-Type': 'application/json' };
-    if (isBearer) fetchHeaders['Authorization'] = `Bearer ${GEMINI_KEY}`;
+    
+    let url, fetchHeaders;
+    if (isBearer) {
+      url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent';
+      fetchHeaders = {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': GEMINI_KEY,
+      };
+    } else {
+      url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_KEY}`;
+      fetchHeaders = { 'Content-Type': 'application/json' };
+    }
 
     const response = await fetch(url, {
       method: 'POST',
