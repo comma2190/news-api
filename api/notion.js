@@ -8,11 +8,12 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const NOTION_API_KEY = process.env.NOTION_API_KEY;
-  const { method, body } = req;
-  const { action, database_id, page_id, data } = typeof body === 'string' ? JSON.parse(body) : (body || {});
+  const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+  const { action, database_id, page_id, data } = body;
 
-  const notionRequest = (method, path, data) => {
+  const notionRequest = (method, path, payload) => {
     return new Promise((resolve, reject) => {
+      const postData = payload ? JSON.stringify(payload) : null;
       const options = {
         hostname: 'api.notion.com',
         path,
@@ -20,38 +21,38 @@ module.exports = async (req, res) => {
         headers: {
           'Authorization': `Bearer ${NOTION_API_KEY}`,
           'Notion-Version': '2022-06-28',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(postData ? {'Content-Length': Buffer.byteLength(postData)} : {})
         }
       };
-      const req = https.request(options, (r) => {
+      const request = https.request(options, (r) => {
         let body = '';
         r.on('data', chunk => body += chunk);
-        r.on('end', () => resolve(JSON.parse(body)));
+        r.on('end', () => { try { resolve(JSON.parse(body)); } catch(e) { resolve({error: body}); } });
       });
-      req.on('error', reject);
-      if (data) req.write(JSON.stringify(data));
-      req.end();
+      request.on('error', reject);
+      if (postData) request.write(postData);
+      request.end();
     });
   };
 
   try {
     let result;
 
-    // 데이터베이스 조회
     if (action === 'query') {
       result = await notionRequest('POST', `/v1/databases/${database_id}/query`, data || {});
     }
-    // 페이지 생성 (새 항목 추가)
     else if (action === 'create') {
       result = await notionRequest('POST', `/v1/pages`, data);
     }
-    // 페이지 수정 (항목 업데이트)
     else if (action === 'update') {
       result = await notionRequest('PATCH', `/v1/pages/${page_id}`, data);
     }
-    // 데이터베이스 구조 조회
     else if (action === 'database') {
-      result = await notionRequest('GET', `/v1/databases/${database_id}`);
+      result = await notionRequest('GET', `/v1/databases/${database_id}`, null);
+    }
+    else if (action === 'update_database') {
+      result = await notionRequest('PATCH', `/v1/databases/${database_id}`, data);
     }
     else {
       return res.status(400).json({ error: 'Invalid action' });
