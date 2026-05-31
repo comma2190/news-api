@@ -45,6 +45,9 @@ module.exports = async (req, res) => {
     else if (action === 'create') {
       result = await notionRequest('POST', `/v1/pages`, data);
     }
+    else if (action === 'create_database') {
+      result = await notionRequest('POST', `/v1/databases`, data);
+    }
     else if (action === 'update') {
       result = await notionRequest('PATCH', `/v1/pages/${page_id}`, data);
     }
@@ -53,6 +56,9 @@ module.exports = async (req, res) => {
     }
     else if (action === 'update_database') {
       result = await notionRequest('PATCH', `/v1/databases/${database_id}`, data);
+    }
+    else if (action === 'search') {
+      result = await notionRequest('POST', `/v1/search`, data || {});
     }
     else {
       return res.status(400).json({ error: 'Invalid action' });
