@@ -1,5 +1,23 @@
 const https = require('https');
 
+function httpsGet(url, redirectCount) {
+  redirectCount = redirectCount || 0;
+  if (redirectCount > 5) return Promise.reject(new Error('Too many redirects'));
+
+  return new Promise((resolve, reject) => {
+    https.get(url, (r) => {
+      if (r.statusCode === 301 || r.statusCode === 302) {
+        return httpsGet(r.headers.location, redirectCount + 1).then(resolve).catch(reject);
+      }
+      let data = '';
+      r.on('data', chunk => data += chunk);
+      r.on('end', () => {
+        try { resolve(JSON.parse(data)); } catch(e) { resolve({ error: data }); }
+      });
+    }).on('error', reject);
+  });
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -22,18 +40,8 @@ module.exports = async (req, res) => {
       description: description || ''
     }).toString();
 
-    const path = '/macros/s/AKfycbyBdRwmOAZJj0W_OoO4KFrQ8XUkQVafHSHVCj1mJCpT6TKlI-9ob2Qxwy9F2IvIctsU/exec?' + qs;
-
-    const result = await new Promise((resolve, reject) => {
-      https.get({ hostname: 'script.google.com', path: path }, (r) => {
-        let data = '';
-        r.on('data', chunk => data += chunk);
-        r.on('end', () => {
-          try { resolve(JSON.parse(data)); } catch(e) { resolve({ error: data }); }
-        });
-      }).on('error', reject);
-    });
-
+    const url = 'https://script.google.com/macros/s/AKfycbyBdRwmOAZJj0W_OoO4KFrQ8XUkQVafHSHVCj1mJCpT6TKlI-9ob2Qxwy9F2IvIctsU/exec?' + qs;
+    const result = await httpsGet(url);
     res.status(200).json(result);
   } catch(err) {
     res.status(500).json({ error: err.message });
